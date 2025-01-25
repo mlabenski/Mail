@@ -238,9 +238,9 @@ local function UpdateGrid()
             Debug("Skipping index %d - beyond mail count of %d", index, numItems)
             return
         end
-        local success, hasItem = pcall(function()
-            return HasInboxItem(index)
-        end)
+        -- For Classic, we don't need HasInboxItem check
+        local success = true
+        local hasItem = index <= GetInboxNumItems()
         
         if success and hasItem then
             Debug("Mail item found at index: %d", index)
