@@ -1,7 +1,7 @@
 -- MailboxGrid.lua
 local addonName, addon = ...
 
--- Logging system
+-- Enhanced Logging system for Classic
 local DEBUG_MODE = true
 local LogLevel = {
     DEBUG = 1,
@@ -9,8 +9,37 @@ local LogLevel = {
     ERROR = 3
 }
 
+-- Create a frame for handling saved variables loading
+local LoggerFrame = CreateFrame("Frame")
+LoggerFrame:RegisterEvent("ADDON_LOADED")
+LoggerFrame:RegisterEvent("PLAYER_LOGOUT")
+
+-- Initialize our saved variables properly
+LoggerFrame:SetScript("OnEvent", function(self, event, arg1)
+    if event == "ADDON_LOADED" and arg1 == "MailboxGrid" then
+        -- Initialize our saved variables if they don't exist
+        if not MailboxGridDB then
+            MailboxGridDB = {
+                logs = {},
+                settings = {
+                    debug = true
+                }
+            }
+        end
+    elseif event == "PLAYER_LOGOUT" then
+        -- Clean up old logs on logout (keep last 100)
+        while #MailboxGridDB.logs > 100 do
+            table.remove(MailboxGridDB.logs, 1)
+        end
+    end
+end)
+
 local function Logger(level, message, ...)
     if not DEBUG_MODE and level == LogLevel.DEBUG then return end
+    
+    -- Get character name and realm for log context
+    local playerName = UnitName("player")
+    local realmName = GetRealmName()
     
     local timestamp = date("%H:%M:%S")
     local levelString = level == LogLevel.DEBUG and "DEBUG" or level == LogLevel.INFO and "INFO" or "ERROR"
