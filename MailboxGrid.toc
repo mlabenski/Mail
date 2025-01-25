@@ -1,0 +1,6 @@
+## Interface: 11404
+## Title: MailboxGrid
+## Notes: Displays mailbox items in a grid format
+## Author: YourName
+## Version: 1.0
+MailboxGrid.lua
