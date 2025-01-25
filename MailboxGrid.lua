@@ -1,5 +1,13 @@
 -- MailboxGrid.lua
 local addonName, addon = ...
+
+-- Version checking
+local _, _, _, tocversion = GetBuildInfo()
+if tocversion < 11400 then -- Check if we're running on Classic
+    print("|cffff0000MailboxGrid requires WoW Classic client|r")
+    return
+end
+
 local MailboxGrid = CreateFrame("Frame", "MailboxGridFrame", UIParent)
 
 -- Initialize variables
@@ -7,6 +15,22 @@ local ITEMS_PER_ROW = 8
 local BUTTON_SIZE = 37
 local BUTTON_SPACING = 4
 local MAX_ITEMS = 18 -- Classic mailbox limit
+local buttons = {}
+
+-- Utility function for safer API calls
+local function SafeGetInboxItem(index, attachIndex)
+    if not index or not attachIndex then return end
+    
+    local success, name, itemID, texture, count = pcall(function()
+        return GetInboxItem(index, attachIndex)
+    end)
+    
+    if success then
+        return name, itemID, texture, count
+    else
+        return nil, nil, nil, 0
+    end
+end
 
 -- Create the main frame
 MailboxGrid:SetWidth((BUTTON_SIZE + BUTTON_SPACING) * ITEMS_PER_ROW)
@@ -31,7 +55,6 @@ local closeButton = CreateFrame("Button", nil, MailboxGrid, "UIPanelCloseButton"
 closeButton:SetPoint("TOPRIGHT", MailboxGrid, "TOPRIGHT", -5, -5)
 
 -- Create item buttons
-local buttons = {}
 for i = 1, MAX_ITEMS do
     local button = CreateFrame("Button", "MailboxGridButton"..i, MailboxGrid)
     button:SetWidth(BUTTON_SIZE)
@@ -53,20 +76,23 @@ for i = 1, MAX_ITEMS do
     button.count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
     button.count:SetPoint("BOTTOMRIGHT", -2, 2)
     
-    -- Add tooltip functionality
+    -- Add tooltip functionality with error handling
     button:SetScript("OnEnter", function(self)
         if self.mailIndex then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            local packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, itemCount = GetInboxHeaderInfo(self.mailIndex)
-            if sender and subject then
+            local success, packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, itemCount = pcall(function()
+                return GetInboxHeaderInfo(self.mailIndex)
+            end)
+            
+            if success and sender and subject then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:AddLine(subject)
                 GameTooltip:AddLine("From: " .. sender)
-                if money > 0 then
+                if money and money > 0 then
                     GameTooltip:AddLine("Money: " .. GetCoinTextureString(money))
                 end
                 if itemCount and itemCount > 0 then
                     for j = 1, ATTACHMENTS_MAX_RECEIVE do
-                        local name, itemID, texture, count = GetInboxItem(self.mailIndex, j)
+                        local name, _, _, count = SafeGetInboxItem(self.mailIndex, j)
                         if name then
                             GameTooltip:AddLine(name .. (count > 1 and " x"..count or ""))
                         end
@@ -83,7 +109,7 @@ for i = 1, MAX_ITEMS do
     buttons[i] = button
 end
 
--- Function to update the grid
+-- Function to update the grid with error handling
 local function UpdateGrid()
     for i = 1, MAX_ITEMS do
         local button = buttons[i]
@@ -92,19 +118,28 @@ local function UpdateGrid()
         button.count:SetText("")
         
         local index = i
-        if HasInboxItem(index) then
+        local success, hasItem = pcall(function()
+            return HasInboxItem(index)
+        end)
+        
+        if success and hasItem then
             button.mailIndex = index
-            local packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, itemCount = GetInboxHeaderInfo(index)
-            if itemCount and itemCount > 0 then
-                local name, itemID, texture, count = GetInboxItem(index, 1)
-                if texture then
-                    button.icon:SetTexture(texture)
-                    if count > 1 then
-                        button.count:SetText(count)
+            local headerSuccess, packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, itemCount = pcall(function()
+                return GetInboxHeaderInfo(index)
+            end)
+            
+            if headerSuccess then
+                if itemCount and itemCount > 0 then
+                    local name, itemID, texture, count = SafeGetInboxItem(index, 1)
+                    if texture then
+                        button.icon:SetTexture(texture)
+                        if count and count > 1 then
+                            button.count:SetText(count)
+                        end
                     end
+                elseif money and money > 0 then
+                    button.icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
                 end
-            elseif money > 0 then
-                button.icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
             end
         end
     end
@@ -139,3 +174,6 @@ end)
 
 -- Hide by default
 MailboxGrid:Hide()
+
+-- Print loaded message
+print("|cff00ff00MailboxGrid loaded successfully|r")
