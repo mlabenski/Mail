@@ -1,6 +1,7 @@
 ## Interface: 11404
 ## Title: MailboxGrid
 ## Notes: Displays mailbox items in a grid format
-## Author: YourName
+## Author: Yeeting
 ## Version: 1.0
+## SavedVariables: MailboxGridLogs
 MailboxGrid.lua
