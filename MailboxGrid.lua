@@ -185,13 +185,30 @@ end
 -- Function to update the grid with logging
 local function UpdateGrid()
     Debug("UpdateGrid called")
+    
+    -- Log total number of mail items
+    local numItems = GetInboxNumItems()
+    Debug("Total inbox items: %d", numItems)
+    
+    -- Check if we can access the first item as a basic API test
+    if numItems > 0 then
+        local packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, itemCount = GetInboxHeaderInfo(1)
+        Debug("First mail details - Sender: %s, Subject: %s, Items: %d", 
+            tostring(sender), tostring(subject), itemCount or 0)
+    end
     for i = 1, MAX_ITEMS do
         local button = buttons[i]
         button.mailIndex = nil
         button.icon:SetTexture(nil)
         button.count:SetText("")
         
+        -- Mail indices in WoW Classic start at 1
         local index = i
+        local numItems = GetInboxNumItems()
+        if index > numItems then
+            Debug("Skipping index %d - beyond mail count of %d", index, numItems)
+            return
+        end
         local success, hasItem = pcall(function()
             return HasInboxItem(index)
         end)
